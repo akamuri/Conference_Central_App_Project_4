@@ -24,6 +24,7 @@ class Profile(ndb.Model):
     mainEmail = ndb.StringProperty()
     teeShirtSize = ndb.StringProperty(default='NOT_SPECIFIED')
     conferenceKeysToAttend = ndb.StringProperty(repeated=True)
+    sessionWishlist = ndb.StringProperty(repeated=True)
 
 
 class ProfileMiniForm(messages.Message):
@@ -119,10 +120,10 @@ class StringMessage(messages.Message):
 class Session(ndb.Model):
     """Session -- Session object"""
     name            = ndb.StringProperty(required=True)
-    highlights      = ndb.StringProperty(repeated=True)
+    highlights      = ndb.StringProperty()
     speaker         = ndb.StringProperty()
     duration        = ndb.IntegerProperty()
-    typeOfSession   = ndb.StringProperty()
+    typeOfSession   = ndb.StringProperty(repeated=True)
     date            = ndb.DateProperty()
     startTime       = ndb.TimeProperty()
   
@@ -130,16 +131,19 @@ class Session(ndb.Model):
 class SessionForm(messages.Message):
     """SessionForm -- Session outbound form message"""
     name            = messages.StringField(1)
-    highlights      = messages.StringField(2, repeated=True)
+    highlights      = messages.StringField(2)
     speaker         = messages.StringField(3)
     duration        = messages.IntegerField(4, variant=messages.Variant.INT32)
-    typeOfSession   = messages.StringField(5)
+    typeOfSession   = messages.StringField(5, repeated=True)
     date            = messages.StringField(6) #DateTimeField()
     startTime       = messages.StringField(7) #TimeField()
     websafeConferenceKey = messages.StringField(8)
 
 class miniSessionForm(messages.Message):
-    websafeConferenceKey = messages.StringField(8)
+    websafeConferenceKey = messages.StringField(1)
+    typeOfSession   = messages.StringField(2)
+    speaker         = messages.StringField(3)
+    sessionKey      = messages.StringField(4)
 
 
 

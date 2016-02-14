@@ -60,11 +60,17 @@ CONF_GET_REQUEST = endpoints.ResourceContainer(
     websafeConferenceKey=messages.StringField(1),
 )
 
+
 CONF_POST_REQUEST = endpoints.ResourceContainer(
     ConferenceForm,
     websafeConferenceKey=messages.StringField(1),
 )
 
+
+Session_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    sessionKey=messages.StringField(1),
+)
 
 
 DEFAULTS = {
@@ -172,6 +178,11 @@ class ConferenceApi(remote.Service):
         return self._doProfile(request)
 
 # - - - Session objects - - - - - - - - - - - - - - - - - 
+#--------------------------------------------------------------
+#--------------------------------------------------------------
+#--------------------------------------------------------------
+
+
     def _copySessionToForm(self, sess):
         """Copy relevant fields from Profile to ProfileForm."""
         # copy relevant fields from Profile to ProfileForm
@@ -179,7 +190,7 @@ class ConferenceApi(remote.Service):
         for field in sf.all_fields():
             if hasattr(sess, field.name):
                 # convert Date to date string; just copy others
-                if field.name.endswith('Date'):
+                if field.name=="date":
                     setattr(sf, field.name, str(getattr(sess, field.name)))
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
@@ -187,6 +198,7 @@ class ConferenceApi(remote.Service):
                 setattr(sf, field.name, session.conferenceKey.urlsafe())
         sf.check_initialized()
         return sf
+        
 
     def _createSessionObject(self, request):
         user = endpoints.get_current_user()
@@ -248,6 +260,123 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
 
+    @endpoints.method(miniSessionForm, SessionForms,
+        path='getConferenceSessionsByType',
+        http_method='POST', name='getConferenceSessionsByType')
+    def getConferenceSessionsByType(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+
+        conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
+
+        # make profile key
+        p_key = ndb.Key(Conference, conf.key.id())
+        # create ancestor query for this user
+        Sessions = Session.query(ancestor=p_key)
+        Sessions = Sessions.filter(Session.typeOfSession == request.typeOfSession)
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+
+    @endpoints.method(miniSessionForm, SessionForms,
+        path='getSessionsBySpeaker',
+        http_method='POST', name='getSessionsBySpeaker')
+    def getSessionsBySpeaker(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+    
+        # create ancestor query for this user
+        Sessions = Session.query(Session.speaker==request.speaker)
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+
+    @ndb.transactional(xg=True)
+    def _sessionWishlist(self, request, reg=True):
+        """Register or unregister user for selected conference."""
+        retval = None
+        prof = self._getProfileFromUser() # get user Profile
+
+        # check if conf exists given websafeConfKey
+        # get conference; check that it exists
+        wsck = request.sessionKey
+        sess = ndb.Key(urlsafe=wsck).get()
+        if not sess:
+            raise endpoints.NotFoundException(
+                'No Session found with key: %s' % wsck)
+
+        # wish
+        if reg:
+            # check if user already registered otherwise add
+            if wsck in prof.sessionWishlist:
+                raise ConflictException(
+                    "You have already registered for this conference")
+
+            # register user, take away one seat
+            prof.sessionWishlist.append(wsck)
+            retval = True
+
+        # unwish
+        else:
+            # check if user already registered
+            if wsck in prof.sessionWishlist:
+                # unregister user, add back one seat
+                prof.sessionWishlist.remove(wsck)
+                retval = True
+            else:
+                retval = False
+
+        # write things back to the datastore & return
+        prof.put()
+        return BooleanMessage(data=retval)
+
+
+
+    @endpoints.method(Session_GET_REQUEST, BooleanMessage,
+            path='session/{sessionKey}',
+            http_method='POST', name='addSessionToWishlist')
+    def addSessionToWishlist(self, request):
+        """Register user for selected conference."""
+        return self._sessionWishlist(request)
+
+    @endpoints.method(Session_GET_REQUEST, BooleanMessage,
+            path='session/{sessionKey}',
+            http_method='DELETE', name='deleteSessionInWishlist')
+    def deleteSessionInWishlist(self, request):
+        """unRegister user for selected conference."""
+        return self._sessionWishlist(request,reg=False)
+
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+        path='getSessionsInWishlist',
+        http_method='POST', name='getSessionsInWishlist')
+    def getSessionsInWishlist(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        prof = self._getProfileFromUser()
+        wishlist = prof.sessionWishlist
+        Sessions =[]
+
+        for sessKey in wishlist:
+            Sessions.append(ndb.Key(urlsafe=sessKey).get())
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+
+
+#--------------------------------------------------------------
+#--------------------------------------------------------------
 #--------------------------------------------------------------
 
 # - - - Conference objects - - - - - - - - - - - - - - - - -
