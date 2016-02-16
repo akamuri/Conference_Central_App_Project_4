@@ -184,8 +184,8 @@ class ConferenceApi(remote.Service):
 
 
     def _copySessionToForm(self, sess):
-        """Copy relevant fields from Profile to ProfileForm."""
-        # copy relevant fields from Profile to ProfileForm
+        """Copy relevant fields from Session to SessionForm."""
+        # copy relevant fields from Session to SessionForm
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(sess, field.name):
@@ -209,21 +209,25 @@ class ConferenceApi(remote.Service):
         if not request.name:
             raise endpoints.BadRequestException("Session 'name' field required")
 
+        if request.startTime<0000 or request.startTime>=2400:
+            raise endpoints.BadRequestException("Session startTime must be in 24hour range")
+
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
         # copy SessionForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
         del data['websafeConferenceKey']
 
-        # convert dates from strings to Date objects; set month based on start_date
+        # convert dates from strings to Date objects;
         if data['date']:
             data['date'] = datetime.strptime(data['date'][:10], "%Y-%m-%d").date()
 
-
         # make Parent Key from Conference ID
         parent_key = ndb.Key(Conference, conf.key.id())
+
         # allocate new Session ID with Conference key as parent
         s_id = Session.allocate_ids(size=1, parent=parent_key)[0]
+
         # make Session key from ID
         s_key = ndb.Key(Session, s_id, parent=parent_key)
         data['key'] = s_key
@@ -236,7 +240,7 @@ class ConferenceApi(remote.Service):
         """Create new session."""
         return self._createSessionObject(request)
 
-    @endpoints.method(miniSessionForm, SessionForms,
+    @endpoints.method(CONF_GET_REQUEST, SessionForms,
         path='getConferenceSessions',
         http_method='POST', name='getConferenceSessions')
     def getConferenceSessions(self, request):
@@ -248,14 +252,12 @@ class ConferenceApi(remote.Service):
 
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
-        # make profile key
+        # make Conference key
         p_key = ndb.Key(Conference, conf.key.id())
-        # create ancestor query for this user
+        
+        # create ancestor query for this conference
         Sessions = Session.query(ancestor=p_key)
-        # get the user profile and display name
-        #prof = p_key.get()
-        #displayName = getattr(prof, 'displayName')
-        # return set of ConferenceForm objects per Conference
+
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
@@ -272,10 +274,12 @@ class ConferenceApi(remote.Service):
 
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
-        # make profile key
+        # make Conference key
         p_key = ndb.Key(Conference, conf.key.id())
-        # create ancestor query for this user
+
+        # create ancestor query for this conference
         Sessions = Session.query(ancestor=p_key)
+
         Sessions = Sessions.filter(Session.typeOfSession == request.typeOfSession)
 
         return SessionForms(
@@ -292,7 +296,7 @@ class ConferenceApi(remote.Service):
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
     
-        # create ancestor query for this user
+        # create query where session speaker and requested speaker match
         Sessions = Session.query(Session.speaker==request.speaker)
 
         return SessionForms(
@@ -301,7 +305,7 @@ class ConferenceApi(remote.Service):
 
     @ndb.transactional(xg=True)
     def _sessionWishlist(self, request, reg=True):
-        """Register or unregister user for selected conference."""
+        """add or delete sessions in the users Wishlist."""
         retval = None
         prof = self._getProfileFromUser() # get user Profile
 
@@ -365,10 +369,49 @@ class ConferenceApi(remote.Service):
             raise endpoints.UnauthorizedException('Authorization required')
         prof = self._getProfileFromUser()
         wishlist = prof.sessionWishlist
+        #registeredConfs = prof.conferenceKeysToAttend 
         Sessions =[]
 
+
         for sessKey in wishlist:
-            Sessions.append(ndb.Key(urlsafe=sessKey).get())
+            oneSession = ndb.Key(urlsafe=sessKey).get()
+            Sessions.append(oneSession)
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+
+    # 1st new Query, search for Sessions that start past a certain time
+    @endpoints.method(miniSessionForm, SessionForms,
+        path='getSessionsByStartTime',
+        http_method='POST', name='getSessionsByStartTime')
+    def getSessionsByStartTime(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+    
+        # create query where session speaker and requested speaker match
+        Sessions = Session.query(Session.startTime>=request.startTime)
+        Sessions = Sessions.order(Session.startTime)
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+    # 2nd new Query, search for Sessions that less that a certain duration 
+    @endpoints.method(miniSessionForm, SessionForms,
+        path='getSessionsByDuration',
+        http_method='POST', name='getSessionsByDuration')
+    def getSessionsByDuration(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+    
+        # create query where session speaker and requested speaker match
+        Sessions = Session.query(Session.duration<=request.duration)
 
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
