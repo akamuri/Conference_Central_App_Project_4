@@ -199,7 +199,7 @@ class ConferenceApi(remote.Service):
         sf.check_initialized()
         return sf
         
-
+# - - -Task 1 - - - - - - - - - - - - - - - - -
     def _createSessionObject(self, request):
         user = endpoints.get_current_user()
         if not user:
@@ -302,7 +302,7 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
-
+# - - -Task 2 - - - - - - - - - - - - - - - - -
     @ndb.transactional(xg=True)
     def _sessionWishlist(self, request, reg=True):
         """add or delete sessions in the users Wishlist."""
@@ -381,7 +381,8 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
 
-    # 1st new Query, search for Sessions that start past a certain time
+# - - -Task 3 - - - - - - - - - - - - - - - - -
+# 1st new Query, search for Sessions that start past a certain time
     @endpoints.method(miniSessionForm, SessionForms,
         path='getSessionsByStartTime',
         http_method='POST', name='getSessionsByStartTime')
@@ -399,7 +400,7 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
-    # 2nd new Query, search for Sessions that less that a certain duration 
+# 2nd new Query, search for Sessions that less that a certain duration 
     @endpoints.method(miniSessionForm, SessionForms,
         path='getSessionsByDuration',
         http_method='POST', name='getSessionsByDuration')
@@ -416,6 +417,12 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
+
+# - - -Task 4 - - - - - - - - - - - - - - - - -
+    @endpoints.method(miniSessionForm, SessionForms,
+        path='getSessionsByDuration',
+        http_method='POST', name='getSessionsByDuration')
+    def getFeaturedSpeaker()(self, request):
 
 
 #--------------------------------------------------------------
