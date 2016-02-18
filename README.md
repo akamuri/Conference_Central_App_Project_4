@@ -29,7 +29,6 @@
 1. Deploy your application.
 
 
-<<<<<<< HEAD
 [1]: https://console.developers.google.com/
 [2]: https://localhost:8080/
 [3]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
@@ -40,17 +39,19 @@
 # Session methods
 1.createSession(SessionForm, websafeConferenceKey) -- open only to the organizer of the conference
 1. getConferenceSessions(websafeConferenceKey) -- Given a conference, return all sessions
-1. getConferenceSessionsByType(websafeConferenceKey, typeOfSession) Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)
-1.getSessionsBySpeaker(speaker) -- Given a speaker, return all sessions given by this particular speaker, across all conferences
+
+2. getConferenceSessionsByType(websafeConferenceKey, typeOfSession) Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)
+
+3.getSessionsBySpeaker(speaker) -- Given a speaker, return all sessions given by this particular speaker, across all conferences
 
 # Wishlist methods
 1.addSessionToWishlist(SessionKey) -- adds the session to the user's list of sessions they are interested in attending
 
-1.You can decide if they can only add conference they have registered to attend or if the wishlist is open to all conferences.
+2.You can decide if they can only add conference they have registered to attend or if the wishlist is open to all conferences.
 
-1.getSessionsInWishlist() -- query for all the sessions in a conference that the user is interested in
+3.getSessionsInWishlist() -- query for all the sessions in a conference that the user is interested in
 
-1.deleteSessionInWishlist(SessionKey) -- removes the session from the user’s list of sessions they are interested in attending
+4.deleteSessionInWishlist(SessionKey) -- removes the session from the user’s list of sessions they are interested in attending
 
 # New Queries 
 1. getSessionsByStartTime : Query for Sessions by Start Time.
