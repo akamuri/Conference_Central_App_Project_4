@@ -34,6 +34,7 @@ from settings import WEB_CLIENT_ID
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
 MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
+MEMCACHE_SPEAKERS_KEY = "FEATURED_SPEAKERS"
 
 from models import Conference
 from models import ConferenceForm
@@ -209,8 +210,8 @@ class ConferenceApi(remote.Service):
         if not request.name:
             raise endpoints.BadRequestException("Session 'name' field required")
 
-        if request.startTime<0000 or request.startTime>=2400:
-            raise endpoints.BadRequestException("Session startTime must be in 24hour range")
+        #if request.startTime<0000 or request.startTime>=2400 or None:
+        #    raise endpoints.BadRequestException("Session startTime must be in 24hour range")
 
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
@@ -232,6 +233,13 @@ class ConferenceApi(remote.Service):
         s_key = ndb.Key(Session, s_id, parent=parent_key)
         data['key'] = s_key
         Session(**data).put()
+
+        # Task 4
+        taskqueue.add(params={'websafeConferenceKey': request.websafeConferenceKey,
+                                'speaker': data['speaker']},
+                                  method='GET',
+                                 url='/tasks/featuredSpeaker'
+                       )
         return request
 
     @endpoints.method(SessionForm, SessionForm, path='session',
@@ -319,10 +327,10 @@ class ConferenceApi(remote.Service):
 
         # wish
         if reg:
-            # check if user already registered otherwise add
+            # check if user already has session in WishList
             if wsck in prof.sessionWishlist:
                 raise ConflictException(
-                    "You have already registered for this conference")
+                    "You already have this Session in your Wishlist")
 
             # register user, take away one seat
             prof.sessionWishlist.append(wsck)
@@ -330,9 +338,9 @@ class ConferenceApi(remote.Service):
 
         # unwish
         else:
-            # check if user already registered
+            # check if user already has session in WishList
             if wsck in prof.sessionWishlist:
-                # unregister user, add back one seat
+                # Remove session from Wishlist
                 prof.sessionWishlist.remove(wsck)
                 retval = True
             else:
@@ -369,7 +377,6 @@ class ConferenceApi(remote.Service):
             raise endpoints.UnauthorizedException('Authorization required')
         prof = self._getProfileFromUser()
         wishlist = prof.sessionWishlist
-        #registeredConfs = prof.conferenceKeysToAttend 
         Sessions =[]
 
 
@@ -417,12 +424,6 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
-
-# - - -Task 4 - - - - - - - - - - - - - - - - -
-    @endpoints.method(miniSessionForm, SessionForms,
-        path='getSessionsByDuration',
-        http_method='POST', name='getSessionsByDuration')
-    def getFeaturedSpeaker()(self, request):
 
 
 #--------------------------------------------------------------
@@ -812,6 +813,42 @@ class ConferenceApi(remote.Service):
         # TODO 1
         # return an existing announcement from Memcache or an empty string.
         announcement = memcache.get(MEMCACHE_ANNOUNCEMENTS_KEY)
+        if not announcement:
+            announcement = ""
+        return StringMessage(data=announcement)
+
+    @staticmethod
+    def _cacheFeaturedSpeaker(websafeConferenceKey, speaker):
+        """Create Announcement & assign to memcache; used by
+        memcache cron job & putAnnouncement().
+        """
+
+        conf = ndb.Key(urlsafe=websafeConferenceKey).get()
+        p_key = ndb.Key(Conference, conf.key.id())
+    
+
+        featuredSessions = Session.query(ancestor=p_key)
+        featuredSessions = featuredSessions.filter(Session.speaker == speaker)
+
+        print "feated is ",featuredSessions.count()
+
+        if featuredSessions.count() > 1:
+            announcement = 'The featured speaker will be : %s. For the following sessions %s' %\
+             (speaker, ', '.join(sess.name for sess in featuredSessions))
+            print announcement
+            memcache.set(MEMCACHE_SPEAKERS_KEY, announcement)
+        else:
+            announcement = ""
+            memcache.delete(MEMCACHE_SPEAKERS_KEY)
+
+        return announcement
+
+    @endpoints.method(message_types.VoidMessage, StringMessage,
+            path='session/announcement/get',
+            http_method='GET', name='getFeaturedSpeaker')
+    def getFeaturedSpeaker(self, request):
+        """Return Announcement from memcache."""
+        announcement = memcache.get(MEMCACHE_SPEAKERS_KEY)
         if not announcement:
             announcement = ""
         return StringMessage(data=announcement)
