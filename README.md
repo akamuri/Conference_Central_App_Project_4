@@ -29,7 +29,6 @@
 1. Deploy your application.
 
 
-<<<<<<< HEAD
 [1]: https://console.developers.google.com/
 [2]: https://localhost:8080/
 [3]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
@@ -56,20 +55,4 @@
 1. getSessionsByStartTime : Query for Sessions by Start Time.
 
 1. getSessionsByDuration : Query for Sessions by Duration 
-||||||| merged common ancestors
-[1]: https://developers.google.com/appengine
-[2]: http://python.org
-[3]: https://developers.google.com/appengine/docs/python/endpoints/
-[4]: https://console.developers.google.com/
-[5]: https://localhost:8080/
-[6]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
-=======
-[1]: https://console.developers.google.com/
-[2]: https://localhost:8080/
-[3]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
 
-## GENERAL USAGE NOTES
--------------------
-
-# Create a Session
->>>>>>> c91657271e63eff80fa923fcc6d9099b3fc321ab
