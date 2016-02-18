@@ -29,6 +29,7 @@
 1. Deploy your application.
 
 
+<<<<<<< HEAD
 [1]: https://console.developers.google.com/
 [2]: https://localhost:8080/
 [3]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
@@ -55,3 +56,4 @@
 1. getSessionsByStartTime : Query for Sessions by Start Time.
 
 1. getSessionsByDuration : Query for Sessions by Duration 
+
