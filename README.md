@@ -33,6 +33,41 @@
 [2]: https://localhost:8080/
 [3]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
 
+## Design Methods 
+
+1. Session Objects -- These are similar to Conference objects. The Session's parent is a Conference. 
+
+1.1 duration: This a an integer property, this beneficial when comparing duration's of different Sessions and Querying 
+
+1.2 startTime : Since the Start time will be using 24hour clock it was beneficial here to use an integer property, the allowed for easy comparisons of different session start times. Allows for less worry about am and pm, just in case there are sessions at 6am and 6pm.
+
+1.3. Speaker -- Chose to go with just a String property, for simplicty, used ndb.StringProperty()for Speaker. Using a string makes searching for sessions by speaker  much easier. 
+
+1.4. Session -- Chose to go with an array of strings. Used ndb.StringProperty(repeated = True) for typeOfSession to allow Sessions to have multiple types, to deal with Sessions that are both lecture and workshop for example.
+
+2. SessionForm -- This is used to populate the Session object, websafeConferenceKey is present in SessionForm, this allows the user to put in the Conference Key that will be the parent of that Session.  
+
+## New Queries 
+1. getSessionsByStartTime : 
+	Using the following Properties :
+	- websafeConferenceKey
+	- startTime
+	The user can Query for all Sessions that occur Past a certain time, for example for all sessions after 2pm, startTime should be set to 1400.  This is the benifit of having the startTime us 24hour clock because is can easily displayed as integers between 0000-2359 . 
+
+
+1. getSessionsByDuration : 
+	Using the following Properties :
+	- websafeConferenceKey
+	- Duration
+	The user can Query for all Sessions that are less than or equal to a certain duration, for example search for all Sessions that are 2 hours or less, the user will simple use the integer 2 for the duration. 
+
+
+## Query Problem 
+- How would you handle a query for all non-workshop sessions before 7pm ? 
+The problem here is the query need to search for all sessions that do NOT have workshop as a type 
+
+
+
 ## GENERAL USAGE NOTES
 -------------------
 
@@ -53,8 +88,4 @@
 
 4.deleteSessionInWishlist(SessionKey) -- removes the session from the user’s list of sessions they are interested in attending
 
-# New Queries 
-1. getSessionsByStartTime : Query for Sessions by Start Time.
-
-1. getSessionsByDuration : Query for Sessions by Duration 
 

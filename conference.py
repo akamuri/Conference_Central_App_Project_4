@@ -25,7 +25,7 @@ from models import ConferenceQueryForms
 from models import Session
 from models import SessionForm
 from models import SessionForms
-from models import miniSessionForm
+from models import QuerySessionForm
 
 from models import BooleanMessage
 from models import ConflictException
@@ -189,8 +189,6 @@ class ConferenceApi(remote.Service):
                     setattr(sf, field.name, str(getattr(sess, field.name)))
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
-            elif field.name == "websafeKey":
-                setattr(sf, field.name, session.conferenceKey.urlsafe())
         sf.check_initialized()
         return sf
 
@@ -205,10 +203,12 @@ class ConferenceApi(remote.Service):
             raise endpoints.BadRequestException(
                 "Session 'name' field required")
 
-        # if request.startTime<0000 or request.startTime>=2400 or None:
-        #    raise endpoints.BadRequestException("Session startTime must be in 24hour range")
-
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
+
+        # Check that user trying to Create the Session is the Owner of the Conference.
+        if conf.organizerUserId != user_id:
+            raise endpoints.BadRequestException(
+                "You must be the Owner of the Conference to Create a Session")
 
         # copy SessionForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name)
@@ -231,13 +231,14 @@ class ConferenceApi(remote.Service):
         data['key'] = s_key
         Session(**data).put()
 
-        # Task 4
-        taskqueue.add(
-            params={
-                'websafeConferenceKey': request.websafeConferenceKey,
-                'speaker': data['speaker']},
-            method='GET',
-            url='/tasks/featuredSpeaker')
+        # Check if there is a speaker, if so run the featuredspeaker task.
+        if data['speaker']:
+            taskqueue.add(
+                params={
+                    'websafeConferenceKey': request.websafeConferenceKey,
+                    'speaker': data['speaker']},
+                method='GET',
+                url='/tasks/featuredSpeaker')
         return request
 
     @endpoints.method(SessionForm, SessionForm, path='session',
@@ -248,10 +249,10 @@ class ConferenceApi(remote.Service):
 
     @endpoints.method(CONF_GET_REQUEST, SessionForms,
                       path='getConferenceSessions',
-                      http_method='POST', name='getConferenceSessions')
+                      http_method='GET', name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Return conferences created by user."""
-        # make sure user is authed
+        # make sure user is Authorized 
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -259,21 +260,21 @@ class ConferenceApi(remote.Service):
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
         # make Conference key
-        p_key = ndb.Key(Conference, conf.key.id())
+        parent_key = ndb.Key(Conference, conf.key.id())
 
-        # create ancestor query for this conference
-        Sessions = Session.query(ancestor=p_key)
+        # Query all the Sessions in this Conference 
+        Sessions = Session.query(ancestor=parent_key)
 
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
 
-    @endpoints.method(miniSessionForm, SessionForms,
+    @endpoints.method(SessionForm, SessionForms,
                       path='getConferenceSessionsByType',
-                      http_method='POST', name='getConferenceSessionsByType')
+                      http_method='GET', name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
         """Return conferences created by user."""
-        # make sure user is authed
+        # make sure user is Authorized 
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -281,10 +282,10 @@ class ConferenceApi(remote.Service):
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
 
         # make Conference key
-        p_key = ndb.Key(Conference, conf.key.id())
+        parent_key = ndb.Key(Conference, conf.key.id())
 
-        # create ancestor query for this conference
-        Sessions = Session.query(ancestor=p_key)
+        # Query all the Sessions in this Conference 
+        Sessions = Session.query(ancestor=parent_key)
 
         Sessions = Sessions.filter(
             Session.typeOfSession == request.typeOfSession)
@@ -293,12 +294,12 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
 
-    @endpoints.method(miniSessionForm, SessionForms,
+    @endpoints.method(SessionForm, SessionForms,
                       path='getSessionsBySpeaker',
-                      http_method='POST', name='getSessionsBySpeaker')
+                      http_method='GET', name='getSessionsBySpeaker')
     def getSessionsBySpeaker(self, request):
         """Return conferences created by user."""
-        # make sure user is authed
+        # make sure user is Authorized 
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -317,8 +318,8 @@ class ConferenceApi(remote.Service):
         retval = None
         prof = self._getProfileFromUser()  # get user Profile
 
-        # check if conf exists given websafeConfKey
-        # get conference; check that it exists
+        # check if Session exists given websafeConfKey
+        # get Session; check that it exists
         wsck = request.sessionKey
         sess = ndb.Key(urlsafe=wsck).get()
         if not sess:
@@ -332,7 +333,7 @@ class ConferenceApi(remote.Service):
                 raise ConflictException(
                     "You already have this Session in your Wishlist")
 
-            # register user, take away one seat
+            # Add session to User's WishList 
             prof.sessionWishlist.append(wsck)
             retval = True
 
@@ -366,10 +367,10 @@ class ConferenceApi(remote.Service):
 
     @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='getSessionsInWishlist',
-                      http_method='POST', name='getSessionsInWishlist')
+                      http_method='GET', name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
         """Return conferences created by user."""
-        # make sure user is authed
+        # make sure user is Authorized 
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -387,9 +388,9 @@ class ConferenceApi(remote.Service):
 
 # - - -Task 3 - - - - - - - - - - - - - - - - -
 # 1st new Query, search for Sessions that start past a certain time
-    @endpoints.method(miniSessionForm, SessionForms,
+    @endpoints.method(SessionForm, SessionForms,
                       path='getSessionsByStartTime',
-                      http_method='POST', name='getSessionsByStartTime')
+                      http_method='GET', name='getSessionsByStartTime')
     def getSessionsByStartTime(self, request):
         """Return conferences created by user."""
         # make sure user is authed
@@ -404,14 +405,14 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
-# 2nd new Query, search for Sessions that less that a certain duration
 
-    @endpoints.method(miniSessionForm, SessionForms,
+# 2nd new Query, search for Sessions that less that a certain duration
+    @endpoints.method(SessionForm, SessionForms,
                       path='getSessionsByDuration',
-                      http_method='POST', name='getSessionsByDuration')
+                      http_method='GET', name='getSessionsByDuration')
     def getSessionsByDuration(self, request):
         """Return conferences created by user."""
-        # make sure user is authed
+        # make sure user is Authorized
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -422,6 +423,46 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
+# Query Problem : Quest all non-workshop sessions before 7pm 
+# Quick a dity method, in this case the user would put Workshop as SessionType and 7pm
+# as start time. 
+    @endpoints.method(QuerySessionForm, SessionForms,
+                      path='getQueryProblem',
+                      http_method='GET', name='getQueryProblem')
+    def getQueryProblem(self, request):
+        # make sure user is Authorized
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+
+        # create query all non-workshop sessions before 7pm
+        # User would set Equal_to_Type = False, meaning they don't want that type 
+        # User would set Before_OR_After = Before(string), and set the starttime to 7pm. 
+        if request.Before_OR_After == "Before" :
+            Sessions = Session.query(Session.startTime <= request.startTime)
+            Sessions = Sessions.order(Session.startTime)
+            temp = []
+            for sess in Sessions:
+                if request.typeOfSession in sess.typeOfSession and request.matchSessionType:
+                    temp.append(sess)
+                elif request.typeOfSession not in sess.typeOfSession and not request.matchSessionType:
+                    temp.append(sess)
+            Sessions = temp
+        else:
+            Sessions = Session.query(Session.startTime >= request.startTime)
+            Sessions = Sessions.order(Session.startTime)
+            temp = []
+            for sess in Sessions:
+                if request.typeOfSession in sess.typeOfSession and request.matchSessionType:
+                    temp.append(sess)
+                elif request.typeOfSession not in sess.typeOfSession and not request.matchSessionType:
+                    temp.append(sess)
+            Sessions = temp
+
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+
 
 # - - - Conference objects - - - - - - - - - - - - - - - - -
 
@@ -817,7 +858,7 @@ class ConferenceApi(remote.Service):
     @staticmethod
     def _cacheFeaturedSpeaker(websafeConferenceKey, speaker):
         """Create Announcement & assign to memcache; used by
-        memcache cron job & putAnnouncement().
+        memcache getFeaturedSpeaker().
         """
 
         conf = ndb.Key(urlsafe=websafeConferenceKey).get()
