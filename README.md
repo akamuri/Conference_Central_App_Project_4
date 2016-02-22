@@ -62,16 +62,17 @@ These are similar to Profile Objects . The user can create a speaker object by a
 This is an Endpoint Method that utilizes, the Speaker Object. Given the speaker email as request, it checks the speaker object for all the sessions the speaker has been signed up for, then returns the list of Sessions. 
 
 # Speaker entity Workflow:
-This more of a workflow to utilize the Speaker Object,
+This more of a workflow to utilize the Speaker Object:
+
 1. The user must first, Create a Speaker Object using endpoints method "createSpeaker"
 
 2. Then Create a Session and add the Speakers email in the "SpeakersEmail", this automatically adds the Session to the Speakers   list "sessionsToSpeak"
 
 3. To Verify that the sessions are being correctly added to the Speaker Object use the endpoints method "getSessionsBySpeakerEmail"
 
-4. Not that "getSessionsBySpeakerEmail" is different from getSessionsBySpeaker because it rather checks the Speaker Object to see what sessions the Speaker is registered to speak in.
+4. NOTE that "getSessionsBySpeakerEmail" is different from getSessionsBySpeaker because it rather checks the Speaker Object to see what sessions the Speaker is registered to speak in.
 
-The Design to choice to use the email, is because the email is unique, just inc ase there are two speakers with the same name.
+The Design to choice to use the email, is because the email is unique, just in case there are two speakers with the same name and to allow for future development to have email's sent to Speakers of the list of Sessions they are signed up for.
 
 
 
