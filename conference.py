@@ -27,6 +27,9 @@ from models import SessionForm
 from models import SessionForms
 from models import QuerySessionForm
 
+from models import Speaker
+from models import SpeakForm
+
 from models import BooleanMessage
 from models import ConflictException
 
@@ -176,6 +179,59 @@ class ConferenceApi(remote.Service):
         """Update & return user profile."""
         return self._doProfile(request)
 
+# - - - Speaker objects - - - - - - - - - - - - - - - - -
+
+    def _copySpeakerToForm(self, speak):
+        """Copy relevant fields from Speaker to SpeakerForm."""
+        # copy relevant fields from Speaker to SpeakerForm
+        spf = SpeakForm()
+        spf.check_initialized()
+        return spf
+
+    def _createSpeakerObject(self, request):
+        speaker_id = request.mainEmail
+        sp_key = ndb.Key(Speaker, speaker_id)
+
+        speaker = Speaker(
+                key=sp_key,
+                name=request.name,
+                mainEmail=request.mainEmail,
+                phone=request.phone,
+            )
+        speaker.put()
+
+        return request
+
+    # Create a Speaker Object 
+    @endpoints.method(SpeakForm, SpeakForm, path='speaker',
+                      http_method='POST', name='createSpeaker')
+    def createSpeaker(self, request):
+        """Create new speaker."""
+        return self._createSpeakerObject(request)
+
+    #Query for speakers of sessions via there email.
+    @endpoints.method(SpeakForm, SessionForms,
+                      path='getSessionsBySpeakerEmail',
+                      http_method='GET', name='getSessionsBySpeakerEmail')
+    def getSessionsBySpeakerEmail(self, request):
+        """Return conferences created by user."""
+        # make sure user is Authorized 
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+
+        oneSpeaker = Speaker.query(Speaker.mainEmail == request.mainEmail)
+        oneSpeaker = oneSpeaker.get()
+
+        Sessions = []
+        for sessKey in oneSpeaker.sessionsToSpeak:
+            oneSession = ndb.Key(urlsafe=sessKey).get()
+            Sessions.append(oneSession)
+        return SessionForms(
+            items=[self._copySessionToForm(sess) for sess in Sessions]
+        )
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 # - - - Session objects - - - - - - - - - - - - - - - - -
 
     def _copySessionToForm(self, sess):
@@ -215,6 +271,7 @@ class ConferenceApi(remote.Service):
                 for field in request.all_fields()}
         del data['websafeConferenceKey']
 
+
         # convert dates from strings to Date objects;
         if data['date']:
             data['date'] = datetime.strptime(
@@ -229,6 +286,17 @@ class ConferenceApi(remote.Service):
         # make Session key from ID
         s_key = ndb.Key(Session, s_id, parent=parent_key)
         data['key'] = s_key
+
+
+        # Check to see if the Speakers email already present in Datastore, 
+        # Then adds this Session key to Speakers list of Sessions to Speak at. 
+        oneSpeaker = Speaker.query(Speaker.mainEmail == data['speakersEmail'])
+        oneSpeaker = oneSpeaker.get()
+        oneSpeaker.sessionsToSpeak.append(s_key.urlsafe())
+        oneSpeaker.put()
+        del data['speakersEmail']
+
+
         Session(**data).put()
 
         # Check if there is a speaker, if so run the featuredspeaker task.

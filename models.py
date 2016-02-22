@@ -117,7 +117,18 @@ class StringMessage(messages.Message):
     """StringMessage-- outbound (single) string message"""
     data = messages.StringField(1, required=True)
 
+class Speaker(ndb.Model):
+    """Profile -- User profile object"""
+    name = ndb.StringProperty()
+    mainEmail = ndb.StringProperty()
+    phone = ndb.StringProperty()
+    sessionsToSpeak = ndb.StringProperty(repeated=True)
 
+class SpeakForm(messages.Message):
+    """SpeakerForm -- Speaker outbound form message"""
+    name           = messages.StringField(1)
+    mainEmail      = messages.StringField(2, required=True)
+    phone          = messages.StringField(3)
 
 class Session(ndb.Model):
     """Session -- Session object"""
@@ -140,6 +151,7 @@ class SessionForm(messages.Message):
     date            = messages.StringField(6) #DateTimeField()
     startTime       = messages.IntegerField(7, variant=messages.Variant.INT32)# in 24 hour notation so it can be ordered
     websafeConferenceKey = messages.StringField(8)
+    speakersEmail = messages.StringField(9)
 
 class QuerySessionForm(messages.Message):
     """SessionForm -- Session outbound form message"""

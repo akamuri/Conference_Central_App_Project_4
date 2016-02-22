@@ -41,11 +41,32 @@
 
 1.2 startTime : Since the Start time will be using 24hour clock it was beneficial here to use an integer property, the allowed for easy comparisons of different session start times. Allows for less worry about am and pm, just in case there are sessions at 6am and 6pm.
 
-1.3. Speaker -- Chose to go with just a String property, for simplicty, used ndb.StringProperty()for Speaker. Using a string makes searching for sessions by speaker  much easier. 
+1.3. Session Type -- Chose to go with an array of strings. Used ndb.StringProperty(repeated = True) for typeOfSession to allow Sessions to have multiple types, to deal with Sessions that are both lecture and workshop for example.
 
-1.4. Session -- Chose to go with an array of strings. Used ndb.StringProperty(repeated = True) for typeOfSession to allow Sessions to have multiple types, to deal with Sessions that are both lecture and workshop for example.
+1.4. Speaker(String) -- Chose to go with just a String property, for simplicty, used ndb.StringProperty()for Speaker. There is also a Speaker Object which explained below. 
 
-2. SessionForm -- This is used to populate the Session object, websafeConferenceKey is present in SessionForm, this allows the user to put in the Conference Key that will be the parent of that Session.  
+1.5. SessionForm -- This is used to populate the Session object, websafeConferenceKey is present in SessionForm, this allows the user to put in the Conference Key that will be the parent of that Session. 
+	- Added speakersEmail Field to Sessionfrom, this allows the user to input the speakers email when creating a session then automatically add that session to the Speakers list of Sessions (sessionsToSpeak)
+
+
+3. Speaker Object -- These are similar to Profile Objects . The user can create a speaker object by adding the following information:
+    - Name : Speakers name
+    - mainEmail : Speakers email address that is used to make a Speaker Key. This is the only required field because the email address is used to create the key and also is also used in the method getSessionsBySpeakerEmail this method is explained below.
+    - phone : Extra piece of information about the Speaker.
+
+3.1  def getSessionsBySpeakerEmail -- This is an Endpoint Method that utilizes, the Speaker Object. Given the speaker email as request, it checks the speaker object for all the sessions the speaker has been signed up for, then returns the list of Sessions. 
+
+# Speaker entity Workflow:
+This more of a workflow to utilize the Speaker Object,
+1. The user must first, Create a Speaker Object using endpoints method "createSpeaker"
+2. Then Create a Session and add the Speakers email in the "SpeakersEmail", this automatically adds the Session to the Speakers list "sessionsToSpeak"
+3. To Verify that the sessions are being correctly added to the Speaker Object use the endpoints method "getSessionsBySpeakerEmail"
+4. Not that "getSessionsBySpeakerEmail" is different from getSessionsBySpeaker because it rather checks the Speaker Object to see what sessions the Speaker is registered to speak in.
+
+The Design to choice to use the email, is because the email is unique, just inc ase there are two speakers with the same name.
+
+
+
 
 ## New Queries 
 1. getSessionsByStartTime : 
@@ -62,9 +83,21 @@
 	The user can Query for all Sessions that are less than or equal to a certain duration, for example search for all Sessions that are 2 hours or less, the user will simple use the integer 2 for the duration. 
 
 
-## Query Problem 
-- How would you handle a query for all non-workshop sessions before 7pm ? 
-The problem here is the query need to search for all sessions that do NOT have workshop as a type 
+## Query Problem
+- How would you handle a query for all non-workshop sessions before 7pm ?
+    -The problem here that I noticed is that typeOfSession is repeated field so running a query on it for type that is non-workshop is difficult because it you must search through the array ensure that workshop is not a present type.
+    - The solution I created was to use a "QuerySessionForm" that has the following inputs:
+        - typeOfSession : The user Type a Session Type
+        - matchSessionType : A Boolean to see if the method look for the typeOfSession added above.
+        - startTime : The user inserts a Start time
+        - Before_OR_After : The User either types in "Before" or "After" referring the start time they are looking for.
+        - websafeConferenceKey : The WebSafe Key of the Conference they are looking for.
+    - So for example to Find all the non-workshop sessions before 7pm the user would use the following:
+        - typeOfSession = Workshop
+        - matchSessionType = False
+        - startTime = 1900
+        - Before_OR_After = Before
+        - websafeConferenceKey : abcdefghijklmnopqrstuvwxyzthequickbrownfoxjumpedoverthedog 
 
 
 
@@ -87,5 +120,16 @@ The problem here is the query need to search for all sessions that do NOT have w
 3.getSessionsInWishlist() -- query for all the sessions in a conference that the user is interested in
 
 4.deleteSessionInWishlist(SessionKey) -- removes the session from the user’s list of sessions they are interested in attending
+
+
+
+
+
+
+
+
+
+
+
 
 
