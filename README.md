@@ -49,7 +49,8 @@
 	- Added speakersEmail Field to Sessionfrom, this allows the user to input the speakers email when creating a session then automatically add that session to the Speakers list of Sessions (sessionsToSpeak)
 
 
-3. Speaker Object -- These are similar to Profile Objects . The user can create a speaker object by adding the following information:
+#Speaker Object 
+These are similar to Profile Objects . The user can create a speaker object by adding the following information:
     - Name : Speakers name
     - mainEmail : Speakers email address that is used to make a Speaker Key. This is the only required field because the email address is used to create the key and also is also used in the method getSessionsBySpeakerEmail this method is explained below.
     - phone : Extra piece of information about the Speaker.
@@ -59,8 +60,11 @@
 # Speaker entity Workflow:
 This more of a workflow to utilize the Speaker Object,
 1. The user must first, Create a Speaker Object using endpoints method "createSpeaker"
-2. Then Create a Session and add the Speakers email in the "SpeakersEmail", this automatically adds the Session to the Speakers list "sessionsToSpeak"
+
+2. Then Create a Session and add the Speakers email in the "SpeakersEmail", this automatically adds the Session to the Speakers   list "sessionsToSpeak"
+
 3. To Verify that the sessions are being correctly added to the Speaker Object use the endpoints method "getSessionsBySpeakerEmail"
+
 4. Not that "getSessionsBySpeakerEmail" is different from getSessionsBySpeaker because it rather checks the Speaker Object to see what sessions the Speaker is registered to speak in.
 
 The Design to choice to use the email, is because the email is unique, just inc ase there are two speakers with the same name.
