@@ -1,4 +1,4 @@
-#Conference Organization App 02/17/2016
+#Conference Organization App 02/21/2016
 
 ##README
 ------
@@ -51,11 +51,15 @@
 
 #Speaker Object 
 These are similar to Profile Objects . The user can create a speaker object by adding the following information:
-    - Name : Speakers name
-    - mainEmail : Speakers email address that is used to make a Speaker Key. This is the only required field because the email address is used to create the key and also is also used in the method getSessionsBySpeakerEmail this method is explained below.
-    - phone : Extra piece of information about the Speaker.
 
-3.1  def getSessionsBySpeakerEmail -- This is an Endpoint Method that utilizes, the Speaker Object. Given the speaker email as request, it checks the speaker object for all the sessions the speaker has been signed up for, then returns the list of Sessions. 
+- Name : Speaker's name
+
+- mainEmail : Speakers email address that is used to make a Speaker Key. This is the only required field because the email address is used to create the key and also is also used in the method getSessionsBySpeakerEmail this method is explained below.
+    
+- phone : Extra piece of information about the Speaker.
+
+## def getSessionsBySpeakerEmail
+This is an Endpoint Method that utilizes, the Speaker Object. Given the speaker email as request, it checks the speaker object for all the sessions the speaker has been signed up for, then returns the list of Sessions. 
 
 # Speaker entity Workflow:
 This more of a workflow to utilize the Speaker Object,
