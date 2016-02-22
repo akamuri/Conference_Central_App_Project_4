@@ -289,11 +289,12 @@ class ConferenceApi(remote.Service):
 
 
         # Check to see if the Speakers email already present in Datastore, 
-        # Then adds this Session key to Speakers list of Sessions to Speak at. 
-        oneSpeaker = Speaker.query(Speaker.mainEmail == data['speakersEmail'])
-        oneSpeaker = oneSpeaker.get()
-        oneSpeaker.sessionsToSpeak.append(s_key.urlsafe())
-        oneSpeaker.put()
+        # Then adds this Session key to Speakers list of Sessions to Speak at.
+        if  data['speakersEmail']:
+            oneSpeaker = Speaker.query(Speaker.mainEmail == data['speakersEmail'])
+            oneSpeaker = oneSpeaker.get()
+            oneSpeaker.sessionsToSpeak.append(s_key.urlsafe())
+            oneSpeaker.put()
         del data['speakersEmail']
 
 
@@ -337,7 +338,7 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess) for sess in Sessions]
         )
 
-    @endpoints.method(SessionForm, SessionForms,
+    @endpoints.method(QuerySessionForm, SessionForms,
                       path='getConferenceSessionsByType',
                       http_method='GET', name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
@@ -486,7 +487,8 @@ class ConferenceApi(remote.Service):
             raise endpoints.UnauthorizedException('Authorization required')
 
         # create query where session speaker and requested speaker match
-        Sessions = Session.query(Session.duration <= request.duration)
+
+        Sessions = Session.query(Session.duration <= request.duration and Session.duration>=0)
 
         return SessionForms(
             items=[self._copySessionToForm(sess) for sess in Sessions]
